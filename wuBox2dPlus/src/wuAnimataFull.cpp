@@ -1,28 +1,28 @@
-#include "crAnimataFull.h"
+#include "wuAnimataFull.h"
 
-crAnimataFull::crAnimataFull()
+wuAnimataFull::wuAnimataFull()
 {
 }
 
-crAnimataFull::~crAnimataFull()
+wuAnimataFull::~wuAnimataFull()
 {
 }
 
-void crAnimataFull::setup(ofxBox2d * _box2d, string _filename, int _Xini, int _Yini){
+void wuAnimataFull::setup(ofxBox2d * _box2d, string _filename, int _Xini, int _Yini){
 
 	XML.loadXML(_filename);
 	super::setup(_box2d, _Xini, _Yini);
 	bKinectSource=false;
 }
 
-void crAnimataFull::setup(ofxBox2d * _box2d, crKinectSkel * _kinSkel, int _Xini, int _Yini)
+void wuAnimataFull::setup(ofxBox2d * _box2d, wuKinectSkel * _kinSkel, int _Xini, int _Yini)
 {
 	kinSkel = _kinSkel;
 	kinSkel->setup();
 	bKinectSource = true;
 }
 
-void crAnimataFull::update()
+void wuAnimataFull::update()
 {
 	if(bKinectSource)
 	{

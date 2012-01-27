@@ -1,54 +1,59 @@
-#include "wuAnimata.h"
+#include "wuAnimataXML.h"
 
-wuAnimata::wuAnimata()
+wuAnimataXML::wuAnimataXML()
 {
 }
 
-wuAnimata::~wuAnimata()
+wuAnimataXML::~wuAnimataXML()
 {
 }
 
-void wuAnimata::setup(ofxBox2d * _box2d, int _vw, int _vh)
-{
-		wuHumanoid::setup(_box2d, _vw, _vh);
-		myFBO.allocate(vw, vh, GL_RGBA);
-//		myFBO.clear(0, 0, 0, 0);
+void wuAnimataXML::setup(ofxBox2d * _box2d, string _filename, int _vw, int _vh, vector <wuSkin> * _skins, ofRectangle rect){
+
+	// posiciona l' animació al lloc del blob + gran 
+	// posicionem la base on és el blob
+	wuHumanoid::setup(_box2d, _vw, _vh);//, rect.x+(rect.width/2), rect.y + rect.height - basedim);
+
+	cout << rect.y + rect.height - basedim << "_";
+	XML.loadXML(_filename);
+	bCaptured=false;
+	old_offX = 0;
+	old_offY = 0;
+
+	// recullo el punter al vector d' skins
+	setSkin(_skins);
+
+//	for(int i=0; i< skins->size(); i++)
+//		cout << i << " " << (*skins)[i].posSkin.x << endl;
+
+	bCaptured=true;
+	bFirstTime = true;
+	XML.goto0();
+
 }
 
-void wuAnimata::setSkin( vector <wuSkin> * _skins)
+void wuAnimataXML::setSkin( vector <wuSkin> * _skins)
 {
 	skins = _skins;
 	OrderSkins();
 }
 
-void wuAnimata::setSkel(Skeleton _skel)
+void wuAnimataXML::update()
 {
-	wuHumanoid::setSkel( _skel);
-	skelCorrection();
-}
-
-void wuAnimata::update()
-{
-	if (skel.bDetected)
+	if(bCaptured)
 	{
-		MakeFBOimage();
-		wuHumanoid::update();
-	}
-}
-
-void wuAnimata::update(Skeleton _skel)
-{
-	wuHumanoid::setSkel( _skel);
-
-	if (skel.bDetected)
-	{	
+		updateFrame(XML.getNextFrame());
+		frame2Skel();
 		skelCorrection();
+
 		MakeFBOimage();
 		wuHumanoid::update();
 	}
+
 }
 
-void wuAnimata::MakeFBOimage()
+
+void wuAnimataXML::MakeFBOimage()
 {
 	float angle;
 	float lineX;
@@ -60,11 +65,9 @@ void wuAnimata::MakeFBOimage()
 	if (skel.bDetected && skins->size() > 2) 
 	{
 
-//		myFBO.clear(0, 0, 0, 0);
+		wuEnte::myFBO_begin();
 
-		myFBO.begin();
-		glClearColor(0, 0, 0, 0);
-			// draw Head Skin
+		// draw Head Skin
 			lineX = skel.head.x - skel.neck.x;
 			lineY = skel.head.y - skel.neck.x;
 			angle = -atan2(lineX,lineY);+(PI);
@@ -77,6 +80,7 @@ void wuAnimata::MakeFBOimage()
 				(*skins)[ord[HEAD]].skin.draw(0, 0);
 				ofDisableAlphaBlending();
 			ofPopMatrix();
+
 
 			// draw Torso Skin
 			lineX = skel.neck.x - skel.torso.x;
@@ -195,8 +199,10 @@ void wuAnimata::MakeFBOimage()
 			lineY = skel.Rknee.y - skel.Rfoot.y;
 			angle = - atan2(lineX,lineY)+(PI);
 
+			int ample = (*skins)[ord[RIGHT_FOOT]].skin.getWidth();
+
 			ofPushMatrix();
-				ofTranslate(modSkel.Rknee.x*scale.x+framePos.x, modSkel.Rknee.y*scale.y+framePos.y);
+				ofTranslate(modSkel.Rknee.x*scale.x+framePos.x+ample, modSkel.Rknee.y*scale.y+framePos.y);
 				(*skins)[ord[RIGHT_FOOT]].skin.setAnchorPercent(0.5, 0.0);
 				ofRotateZ(ofRadToDeg(angle));
 				ofEnableAlphaBlending();
@@ -220,38 +226,63 @@ void wuAnimata::MakeFBOimage()
 					ofDisableAlphaBlending();
 				ofPopMatrix();
 			}
-		myFBO.end();
- 
-        ofPixels fboPixels;
-        myFBO.readToPixels(fboPixels);
-		grayDiff.setFromAlphaPixels((unsigned char *)fboPixels.getPixels(), vw, vh, true);
-		grayDiff.blur(5);
-
+	
+			wuEnte::myFBO_end();
 	}
 
 }
 
 
-void wuAnimata::draw(bool bDrawlines, int _offX)
+void wuAnimataXML::draw(bool bDrawlines, int _offX)
 {
 	ofSetColor(255, 255, 255);
-	float angle;
-	float lineX;
-	float lineY;
 
 	if (skel.bDetected && skins->size() > 2) 
 	{
-		ofEnableAlphaBlending();
-		ofSetColor(255, 255, 255);
-		myFBO.draw(_offX,0);
-		ofDisableAlphaBlending();
+		wuEnte::draw_FBO(_offX, 0);
 	}
 	wuHumanoid::draw(bDrawlines, _offX);
 }
 
+void wuAnimataXML::updateFrame(vector<pieceInfo> * _newframe)
+{
+		frame.clear();
+
+		for(int i=0; i < (*_newframe).size(); i++)
+		{
+			pieceInfo piece;
+
+			piece.pos = (*_newframe)[i].pos;
+			piece.ang = (*_newframe)[i].ang;
+			// add piece position to frame
+			frame.push_back(piece);
+		}
+}
+
+void wuAnimataXML::frame2Skel()
+{
+	skel.head = frame[0].pos;
+	skel.neck = frame[1].pos;
+	skel.Lshoulder = frame[2].pos;
+	skel.Rshoulder = frame[3].pos;
+	skel.Lelbow = frame[4].pos;
+	skel.Relbow = frame[5].pos;
+	skel.Lhand = frame[6].pos;
+	skel.Rhand = frame[7].pos;
+	skel.torso = frame[8].pos;
+	skel.Lhip = frame[9].pos;
+	skel.Rhip = frame[10].pos;
+	skel.Lknee = frame[11].pos;
+	skel.Rknee = frame[12].pos;
+	skel.Lfoot = frame[13].pos;
+	skel.Rfoot = frame[14].pos;
+
+	skel.bDetected = true;
+}
+
 // registra en ord[] els skins segons la pos.x en que van ser capturats (de petit a gran)
 // ja que skins[] està ordenat per arees de blob.
-void wuAnimata::OrderSkins()
+void wuAnimataXML::OrderSkins()
 {
 	float max_X=0;
 
@@ -270,6 +301,9 @@ void wuAnimata::OrderSkins()
 			}
 			max_X = (*skins)[ ord[j] ].posSkin.x;
 	}
+
+	for(int i=0; i < 11; i++)
+		ord[i] = i;
 
 	switch(skins->size())
 	{
@@ -323,9 +357,15 @@ void wuAnimata::OrderSkins()
 		case 11: // all
 			break;
 	}
+
+	cout << "**********";
+	cout << "head " << (*skins)[ord[HEAD]].posSkin.x << endl;
+	cout << "torso " << (*skins)[ord[TORSO]].posSkin.x << endl;
+	cout << "lharm " << (*skins)[ord[LEFT_ARM]].posSkin.x << endl;
+
 }
 
-void wuAnimata::skelCorrection()
+void wuAnimataXML::skelCorrection()
 {
 	if (skel.bDetected && skins->size() > 2) 
 	{
