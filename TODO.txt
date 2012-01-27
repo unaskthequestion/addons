@@ -5,7 +5,7 @@ WuImagePLus
 Els EnteManagers (en general)
 	- peten quan usem un array d' Entes (alguna cosa relacionada amb el gray.setFromPixels(FBO.getPixels())
 
-Falta wuGras/wuGarden
+Millorar el wuGras/wuGarden
 
 El wuMoviePlus s' ha de fusionar amb el wuEnte, ....
 
